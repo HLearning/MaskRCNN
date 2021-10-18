@@ -24,7 +24,7 @@ class Config(object):
     # experiment is running.
     NAME = None  # Override in sub-classes
 
-    # NUMBER OF GPUs to use. When using only a CPU, this needs to be set to 1.
+    # NUMBER OF GPUs to use. When using only a GPU, this needs to be set to 1.
     GPU_COUNT = 1
 
     # Number of images to train with on each GPU. A 12GB GPU can typically
@@ -94,7 +94,7 @@ class Config(object):
     # ROIs kept after tf.nn.top_k and before non-maximum suppression
     PRE_NMS_LIMIT = 6000
 
-    # ROIs kept after non-maximum suppression (training and inference)
+    # 非最大抑制后保留的ROI（训练和推理）
     POST_NMS_ROIS_TRAINING = 2000
     POST_NMS_ROIS_INFERENCE = 1000
 
@@ -215,7 +215,8 @@ class Config(object):
         # Effective batch size
         self.BATCH_SIZE = self.IMAGES_PER_GPU * self.GPU_COUNT
 
-        # Input image size
+        # 输入的图片尺寸
+        # 如果采用"crop", 尺寸是：800 x 800 x 3，否则是：1024 x 1024 x 3
         if self.IMAGE_RESIZE_MODE == "crop":
             self.IMAGE_SHAPE = np.array([self.IMAGE_MIN_DIM, self.IMAGE_MIN_DIM,
                 self.IMAGE_CHANNEL_COUNT])
@@ -223,8 +224,8 @@ class Config(object):
             self.IMAGE_SHAPE = np.array([self.IMAGE_MAX_DIM, self.IMAGE_MAX_DIM,
                 self.IMAGE_CHANNEL_COUNT])
 
-        # Image meta data length
-        # See compose_image_meta() for details
+        # 图像 meta 数据的长度， image meta 指一系列相关的图像信息的集合
+        # 参考 compose_image_meta() 函数的定义
         self.IMAGE_META_SIZE = 1 + 3 + 3 + 4 + 1 + self.NUM_CLASSES
 
     def display(self):

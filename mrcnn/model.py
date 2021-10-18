@@ -25,7 +25,7 @@ import keras.models as KM
 
 from mrcnn import utils
 
-# Requires TensorFlow 1.3+ and Keras 2.0.8+.
+# 依赖 TensorFlow 1.3+ 和 Keras 2.0.8+
 from distutils.version import LooseVersion
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
 assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
@@ -36,8 +36,7 @@ assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
 ############################################################
 
 def log(text, array=None):
-    """Prints a text message. And, optionally, if a Numpy array is provided it
-    prints it's shape, min, and max values.
+    """打印一条文本。另外，如果提供了Numpy数组，它还可以打印其形状、最小值和最大值。
     """
     if array is not None:
         text = text.ljust(25)
@@ -51,33 +50,29 @@ def log(text, array=None):
 
 
 class BatchNorm(KL.BatchNormalization):
-    """Extends the Keras BatchNormalization class to allow a central place
-    to make changes if needed.
-
-    Batch normalization has a negative effect on training if batches are small
-    so this layer is often frozen (via setting in Config class) and functions
-    as linear layer.
+    """扩展Keras BatchNormalization 类，以允许在中间位置使用时进行更改。
+    如果批次很小，则批次规范化会对训练产生负面影响，因此该层通常被冻结（通过配置类中的设置），并用作线性层。
     """
     def call(self, inputs, training=None):
         """
-        Note about training values:
-            None: Train BN layers. This is the normal mode
-            False: Freeze BN layers. Good when batch size is small
-            True: (don't use). Set layer in training mode even when making inferences
+        training参数的可选值：
+            None: 训练 BN 层. 这是默认模式。
+            False: Freeze BN layers. 批量较小时效果很好
+            True: (不要使用). 即便在推理的过程中， 也是training的模式
         """
         return super(self.__class__, self).call(inputs, training=training)
 
 
 def compute_backbone_shapes(config, image_shape):
-    """Computes the width and height of each stage of the backbone network.
-
+    """计算主干网络每个阶段的宽度和高度
     Returns:
-        [N, (height, width)]. Where N is the number of stages
+        [N, (height, width)]. N是一个数字， 表示某个阶段
     """
     if callable(config.BACKBONE):
         return config.COMPUTE_BACKBONE_SHAPE(image_shape)
 
-    # Currently supports ResNet only
+    # 当前仅支持 ResNet
+    # BACKBONE_STRIDES = [4, 8, 16, 32, 64]
     assert config.BACKBONE in ["resnet50", "resnet101"]
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
@@ -86,7 +81,7 @@ def compute_backbone_shapes(config, image_shape):
 
 
 ############################################################
-#  Resnet Graph
+#  Resnet 计算图
 ############################################################
 
 # Code adopted from:
@@ -94,15 +89,15 @@ def compute_backbone_shapes(config, image_shape):
 
 def identity_block(input_tensor, kernel_size, filters, stage, block,
                    use_bias=True, train_bn=True):
-    """The identity_block is the block that has no conv layer at shortcut
-    # Arguments
-        input_tensor: input tensor
-        kernel_size: default 3, the kernel size of middle conv layer at main path
-        filters: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integer, current stage label, used for generating layer names
-        block: 'a','b'..., current block label, used for generating layer names
-        use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. Train or freeze Batch Norm layers
+    """ 跳跃连接块
+    # 参数：
+        input_tensor: 输入张量
+        kernel_size: 默认3, 主干上的中间卷积层的卷积核大小
+        filters: 整型列表, 主干上3个卷积层的卷积核数量
+        stage: 整型, 当前阶段的label标签, 使用它来生成网络层的名称
+        block: 'a','b'..., 当前网络模块的标签, 使用它来生成网络层的名称
+        use_bias: Boolean. 在卷积层是否使用偏置项 bias
+        train_bn: Boolean. 训练或者冻结 BN 层
     """
     nb_filter1, nb_filter2, nb_filter3 = filters
     conv_name_base = 'res' + str(stage) + block + '_branch'
@@ -130,16 +125,15 @@ def identity_block(input_tensor, kernel_size, filters, stage, block,
 def conv_block(input_tensor, kernel_size, filters, stage, block,
                strides=(2, 2), use_bias=True, train_bn=True):
     """conv_block is the block that has a conv layer at shortcut
-    # Arguments
-        input_tensor: input tensor
-        kernel_size: default 3, the kernel size of middle conv layer at main path
-        filters: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integer, current stage label, used for generating layer names
-        block: 'a','b'..., current block label, used for generating layer names
-        use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. Train or freeze Batch Norm layers
-    Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-    And the shortcut should have subsample=(2,2) as well
+    # 参数：
+        input_tensor: 输入张量
+        kernel_size: 默认3, 主干上的中间卷积层的卷积核大小
+        filters: 整型列表, 主干上3个卷积层的卷积核数量
+        stage: 整型, 当前阶段的label标签, 使用它来生成网络层的名称
+        block: 'a','b'..., 当前网络模块的标签, 使用它来生成网络层的名称
+        use_bias: Boolean. 在卷积层是否使用偏置项 bias
+        train_bn: Boolean. 训练或者冻结 BN 层
+    从第3阶段开始，主路径上的第一个conv层是 subsample=（2,2）shortcut 也应该有subsample=（2,2）,
     """
     nb_filter1, nb_filter2, nb_filter3 = filters
     conv_name_base = 'res' + str(stage) + block + '_branch'
@@ -169,10 +163,10 @@ def conv_block(input_tensor, kernel_size, filters, stage, block,
 
 
 def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
-    """Build a ResNet graph.
-        architecture: Can be resnet50 or resnet101
-        stage5: Boolean. If False, stage5 of the network is not created
-        train_bn: Boolean. Train or freeze Batch Norm layers
+    """构建 ResNet.
+        architecture: 可能是 resnet50 或者 resnet101
+        stage5: Boolean. 如果是 False, 则不创建 stage5 阶段的网络 
+        train_bn: Boolean. 训练或者冻结 BN 层
     """
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
@@ -211,11 +205,11 @@ def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
 ############################################################
 
 def apply_box_deltas_graph(boxes, deltas):
-    """Applies the given deltas to the given boxes.
+    """将给定的增量， 应用到 box 上, 这里主要是loss的处理部分， 计算的是偏移量
     boxes: [N, (y1, x1, y2, x2)] boxes to update
     deltas: [N, (dy, dx, log(dh), log(dw))] refinements to apply
     """
-    # Convert to y, x, h, w
+    #  y1, x1, y2, x2 ----> y, x, h, w
     height = boxes[:, 2] - boxes[:, 0]
     width = boxes[:, 3] - boxes[:, 1]
     center_y = boxes[:, 0] + 0.5 * height
@@ -225,7 +219,7 @@ def apply_box_deltas_graph(boxes, deltas):
     center_x += deltas[:, 1] * width
     height *= tf.exp(deltas[:, 2])
     width *= tf.exp(deltas[:, 3])
-    # Convert back to y1, x1, y2, x2
+    # y, x, h, w ----> y1, x1, y2, x2
     y1 = center_y - 0.5 * height
     x1 = center_x - 0.5 * width
     y2 = y1 + height
@@ -235,7 +229,7 @@ def apply_box_deltas_graph(boxes, deltas):
 
 
 def clip_boxes_graph(boxes, window):
-    """
+    """ 暂时没看懂这个函数啥意思
     boxes: [N, (y1, x1, y2, x2)]
     window: [4] in the form y1, x1, y2, x2
     """
@@ -253,18 +247,16 @@ def clip_boxes_graph(boxes, window):
 
 
 class ProposalLayer(KE.Layer):
-    """Receives anchor scores and selects a subset to pass as proposals
-    to the second stage. Filtering is done based on anchor scores and
-    non-max suppression to remove overlaps. It also applies bounding
-    box refinement deltas to anchors.
-
-    Inputs:
+    """预选框提取层，  接收 anchor 分数并选择一个预选框集合传递给第二阶段。
+    过滤是基于anchor分数和用非最大抑制来消除重叠进行的。
+    它还将边界框细化增量应用于定位。
+    输入:
         rpn_probs: [batch, num_anchors, (bg prob, fg prob)]
         rpn_bbox: [batch, num_anchors, (dy, dx, log(dh), log(dw))]
         anchors: [batch, num_anchors, (y1, x1, y2, x2)] anchors in normalized coordinates
 
-    Returns:
-        Proposals in normalized coordinates [batch, rois, (y1, x1, y2, x2)]
+    返回值:
+        预选框的规范化坐标： [batch, rois, (y1, x1, y2, x2)]
     """
 
     def __init__(self, proposal_count, nms_threshold, config=None, **kwargs):
@@ -320,7 +312,7 @@ class ProposalLayer(KE.Layer):
                 boxes, scores, self.proposal_count,
                 self.nms_threshold, name="rpn_non_max_suppression")
             proposals = tf.gather(boxes, indices)
-            # Pad if needed
+            # 如果nms之后的候选框不足proposal_count， 补0
             padding = tf.maximum(self.proposal_count - tf.shape(proposals)[0], 0)
             proposals = tf.pad(proposals, [(0, padding), (0, 0)])
             return proposals
@@ -337,7 +329,7 @@ class ProposalLayer(KE.Layer):
 ############################################################
 
 def log2_graph(x):
-    """Implementation of Log2. TF doesn't have a native implementation."""
+    """实现 Log2. TF的原生不支持， 采用对数函数实现"""
     return tf.log(x) / tf.log(2.0)
 
 
@@ -455,17 +447,16 @@ class PyramidROIAlign(KE.Layer):
 ############################################################
 
 def overlaps_graph(boxes1, boxes2):
-    """Computes IoU overlaps between two sets of boxes.
+    """计算两组框之间的IoU重叠.
     boxes1, boxes2: [N, (y1, x1, y2, x2)].
     """
     # 1. Tile boxes2 and repeat boxes1. This allows us to compare
     # every boxes1 against every boxes2 without loops.
-    # TF doesn't have an equivalent to np.repeat() so simulate it
-    # using tf.tile() and tf.reshape.
+    # TF 没有等价于 np.repeat() 的函数， 所以使用 tf.tile() 和 tf.reshape 模拟。
     b1 = tf.reshape(tf.tile(tf.expand_dims(boxes1, 1),
                             [1, 1, tf.shape(boxes2)[0]]), [-1, 4])
     b2 = tf.tile(boxes2, [tf.shape(boxes1)[0], 1])
-    # 2. Compute intersections
+    # 2. 计算交集
     b1_y1, b1_x1, b1_y2, b1_x2 = tf.split(b1, 4, axis=1)
     b2_y1, b2_x1, b2_y2, b2_x2 = tf.split(b2, 4, axis=1)
     y1 = tf.maximum(b1_y1, b2_y1)
@@ -473,11 +464,11 @@ def overlaps_graph(boxes1, boxes2):
     y2 = tf.minimum(b1_y2, b2_y2)
     x2 = tf.minimum(b1_x2, b2_x2)
     intersection = tf.maximum(x2 - x1, 0) * tf.maximum(y2 - y1, 0)
-    # 3. Compute unions
+    # 3. 计算并集
     b1_area = (b1_y2 - b1_y1) * (b1_x2 - b1_x1)
     b2_area = (b2_y2 - b2_y1) * (b2_x2 - b2_x1)
     union = b1_area + b2_area - intersection
-    # 4. Compute IoU and reshape to [boxes1, boxes2]
+    # 4. 计算 IoU 并且 reshape 到 [boxes1, boxes2]
     iou = intersection / union
     overlaps = tf.reshape(iou, [tf.shape(boxes1)[0], tf.shape(boxes2)[0]])
     return overlaps
@@ -1010,8 +1001,8 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
 ############################################################
 
 def smooth_l1_loss(y_true, y_pred):
-    """Implements Smooth-L1 loss.
-    y_true and y_pred are typically: [N, 4], but could be any shape.
+    """实现 Smooth-L1 loss.
+    y_true 和 y_pred 通常是: [N, 4], 也可以是任意的shape.
     """
     diff = K.abs(y_true - y_pred)
     less_than_one = K.cast(K.less(diff, 1.0), "float32")
@@ -1818,18 +1809,17 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 ############################################################
 
 class MaskRCNN():
-    """Encapsulates the Mask RCNN model functionality.
-
-    The actual Keras model is in the keras_model property.
+    """封装 Mask RCNN 模型功能.
+    这里的 keras 模型存在于 keras_model 中.
     """
 
     def __init__(self, mode, config, model_dir):
         """
-        mode: Either "training" or "inference"
-        config: A Sub-class of the Config class
-        model_dir: Directory to save training logs and trained weights
+        mode: "training" 或 "inference"
+        config: 继承 Config 类的一个子类
+        model_dir: 存放训练模型权重和日志的文件夹
         """
-        assert mode in ['training', 'inference']
+        assert mode in ['training', 'inference'] # 验证模型参数是否正确
         self.mode = mode
         self.config = config
         self.model_dir = model_dir
@@ -1837,25 +1827,25 @@ class MaskRCNN():
         self.keras_model = self.build(mode=mode, config=config)
 
     def build(self, mode, config):
-        """Build Mask R-CNN architecture.
-            input_shape: The shape of the input image.
-            mode: Either "training" or "inference". The inputs and
-                outputs of the model differ accordingly.
+        """ 构建 Mask R-CNN 架构.
+            input_shape: 输入图片的尺寸.
+            mode: "training" 或 "inference". 
         """
         assert mode in ['training', 'inference']
 
-        # Image size must be dividable by 2 multiple times
+        # 图片的尺寸必须可以多次整除以2， 要求可以被64整除
         h, w = config.IMAGE_SHAPE[:2]
         if h / 2**6 != int(h / 2**6) or w / 2**6 != int(w / 2**6):
             raise Exception("Image size must be dividable by 2 at least 6 times "
                             "to avoid fractions when downscaling and upscaling."
                             "For example, use 256, 320, 384, 448, 512, ... etc. ")
 
-        # Inputs
+        # 输入
         input_image = KL.Input(
             shape=[None, None, config.IMAGE_SHAPE[2]], name="input_image")
         input_image_meta = KL.Input(shape=[config.IMAGE_META_SIZE],
                                     name="input_image_meta")
+        # 在训练模式下
         if mode == "training":
             # RPN GT
             input_rpn_match = KL.Input(
@@ -1885,13 +1875,14 @@ class MaskRCNN():
                 input_gt_masks = KL.Input(
                     shape=[config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1], None],
                     name="input_gt_masks", dtype=bool)
+        # 在推理模式下
         elif mode == "inference":
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
 
-        # Build the shared convolutional layers.
-        # Bottom-up Layers
-        # Returns a list of the last layers of each stage, 5 in total.
+        # 构建共享的卷积层.
+        # 自下而上的层
+        # 返回一个列表，它包含每个阶段的最后一层，共5层。
         # Don't create the thead (stage 5), so we pick the 4th item in the list.
         if callable(config.BACKBONE):
             _, C2, C3, C4, C5 = config.BACKBONE(input_image, stage5=True,
@@ -1899,8 +1890,9 @@ class MaskRCNN():
         else:
             _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE,
                                              stage5=True, train_bn=config.TRAIN_BN)
-        # Top-down Layers
-        # TODO: add assert to varify feature map sizes match what's in config
+        # 自下而上的层
+        # TODO: 添加 assert 去校验特征图尺寸是否和配置中的大小匹配
+        # TOP_DOWN_PYRAMID_SIZE = 256， 网络的这些层使用了 256 个卷积核
         P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c5p5')(C5)
         P4 = KL.Add(name="fpn_p4add")([
             KL.UpSampling2D(size=(2, 2), name="fpn_p5upsampled")(P5),
@@ -1911,16 +1903,15 @@ class MaskRCNN():
         P2 = KL.Add(name="fpn_p2add")([
             KL.UpSampling2D(size=(2, 2), name="fpn_p3upsampled")(P3),
             KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c2p2')(C2)])
-        # Attach 3x3 conv to all P layers to get the final feature maps.
+        # 在所有的P层， 使用 3*3的卷积核进行卷积
         P2 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p2")(P2)
         P3 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p3")(P3)
         P4 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p4")(P4)
         P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p5")(P5)
-        # P6 is used for the 5th anchor scale in RPN. Generated by
-        # subsampling from P5 with stride of 2.
+        # P6 用在 RPN 中的 第五个 anchor scale. P6 从 P5 经过 MaxPooling2D 得到。
         P6 = KL.MaxPooling2D(pool_size=(1, 1), strides=2, name="fpn_p6")(P5)
 
-        # Note that P6 is used in RPN, but not in the classifier heads.
+        # 请注意，P6用于RPN，但不用于 classifier heads.
         rpn_feature_maps = [P2, P3, P4, P5, P6]
         mrcnn_feature_maps = [P2, P3, P4, P5]
 
@@ -1942,9 +1933,8 @@ class MaskRCNN():
         layer_outputs = []  # list of lists
         for p in rpn_feature_maps:
             layer_outputs.append(rpn([p]))
-        # Concatenate layer outputs
-        # Convert from list of lists of level outputs to list of lists
-        # of outputs across levels.
+        # Concatenate 层的输出
+        # Convert from list of lists of level outputs to list of lists of outputs across levels.
         # e.g. [[a1, b1, c1], [a2, b2, c2]] => [[a1, a2], [b1, b2], [c1, c2]]
         output_names = ["rpn_class_logits", "rpn_class", "rpn_bbox"]
         outputs = list(zip(*layer_outputs))
@@ -2056,7 +2046,7 @@ class MaskRCNN():
                                  mrcnn_mask, rpn_rois, rpn_class, rpn_bbox],
                              name='mask_rcnn')
 
-        # Add multi-GPU support.
+        # 多 GPU 支持
         if config.GPU_COUNT > 1:
             from mrcnn.parallel_model import ParallelModel
             model = ParallelModel(model, config.GPU_COUNT)
@@ -2137,8 +2127,8 @@ class MaskRCNN():
         self.set_log_dir(filepath)
 
     def get_imagenet_weights(self):
-        """Downloads ImageNet trained weights from Keras.
-        Returns path to weights file.
+        """下载 ImageNet 预训练权重
+        返回权重文件的路径
         """
         from keras.utils.data_utils import get_file
         TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/'\
@@ -2236,23 +2226,22 @@ class MaskRCNN():
                                             layer.__class__.__name__))
 
     def set_log_dir(self, model_path=None):
-        """Sets the model log directory and epoch counter.
+        """ 设置模型日志文件夹和epoch计数器.
 
-        model_path: If None, or a format different from what this code uses
-            then set a new log directory and start epochs from 0. Otherwise,
-            extract the log directory and the epoch counter from the file
-            name.
+        model_path: 如果没有，或者使用与此代码不同的格式，会设置一个新的日志目录并从0开始记录。
+                    否则从文件中提取日志目录和epoch计数器名称
         """
-        # Set date and epoch counter as if starting a new model
+        # 如果开始一个新模型， 设置epoch计数器和时间
         self.epoch = 0
         now = datetime.datetime.now()
 
-        # If we have a model path with date and epochs use them
+        # 如果我们有一个带有日期和epoch的模型路径，就使用它们
         if model_path:
-            # Continue from we left of. Get epoch and date from the file name
-            # A sample model path might look like:
+            # 从左边开始. 从文件名中获取epoch计数器和日期。
+            # 示例模型路径可能如下所示:
             # \path\to\logs\coco20171029T2315\mask_rcnn_coco_0001.h5 (Windows)
             # /path/to/logs/coco20171029T2315/mask_rcnn_coco_0001.h5 (Linux)
+            # 使用正则， 去匹配时间和epoch计数器
             regex = r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})[/\\]mask\_rcnn\_[\w-]+(\d{4})\.h5"
             m = re.match(regex, model_path)
             if m:
@@ -2260,14 +2249,16 @@ class MaskRCNN():
                                         int(m.group(4)), int(m.group(5)))
                 # Epoch number in file is 1-based, and in Keras code it's 0-based.
                 # So, adjust for that then increment by one to start from the next epoch
+                # epoch的数字是从1开始的， 而keras的代码中是从0开始的
+                # 所以需要调整这个值， 减去1， 然后从下一个值开始计数， 因此加1
                 self.epoch = int(m.group(6)) - 1 + 1
                 print('Re-starting from epoch %d' % self.epoch)
 
-        # Directory for training logs
+        # 存放训练日志的文件夹
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
 
-        # Path to save after each epoch. Include placeholders that get filled by Keras.
+        # 每个训练好的epoch都要保存
         self.checkpoint_path = os.path.join(self.log_dir, "mask_rcnn_{}_*epoch*.h5".format(
             self.config.NAME.lower()))
         self.checkpoint_path = self.checkpoint_path.replace(
@@ -2719,22 +2710,20 @@ class MaskRCNN():
 
 
 ############################################################
-#  Data Formatting
+#  Data 格式化
 ############################################################
 
 def compose_image_meta(image_id, original_image_shape, image_shape,
                        window, scale, active_class_ids):
-    """Takes attributes of an image and puts them in one 1D array.
+    """获取图像的属性并将其放入一个 1D 数组中.
 
-    image_id: An int ID of the image. Useful for debugging.
-    original_image_shape: [H, W, C] before resizing or padding.
-    image_shape: [H, W, C] after resizing and padding
-    window: (y1, x1, y2, x2) in pixels. The area of the image where the real
-            image is (excluding the padding)
-    scale: The scaling factor applied to the original image (float32)
-    active_class_ids: List of class_ids available in the dataset from which
-        the image came. Useful if training on images from multiple datasets
-        where not all classes are present in all datasets.
+    image_id: 图片的整型ID， 用于调试
+    original_image_shape: resizing 或者 padding 之前的 [H, W, C]。
+    image_shape:          resizing 或者 padding 之后的 [H, W, C]。
+    window: (y1, x1, y2, x2) 真实图像在处理后的图像中的位置（不包含填充的区域）
+    scale: 相对于原始图像的一个缩放系数 (float32)
+    active_class_ids: 图像来源的数据集中可用的class_id列表。
+                      如果对来自多个数据集中的图像进行训练，并且并非所有类都存在于所有数据集中，则此功能非常有用。
     """
     meta = np.array(
         [image_id] +                  # size=1
@@ -2748,12 +2737,10 @@ def compose_image_meta(image_id, original_image_shape, image_shape,
 
 
 def parse_image_meta(meta):
-    """Parses an array that contains image attributes to its components.
-    See compose_image_meta() for more details.
-
-    meta: [batch, meta length] where meta length depends on NUM_CLASSES
-
-    Returns a dict of the parsed values.
+    """将 meta 解析成 图像的属性. 
+    参考 compose_image_meta() 函数的定义。
+    meta: [batch, meta length] 数据长度取决于： NUM_CLASSES
+    返回一个属性和值的字典。
     """
     image_id = meta[:, 0]
     original_image_shape = meta[:, 1:4]
@@ -2772,12 +2759,10 @@ def parse_image_meta(meta):
 
 
 def parse_image_meta_graph(meta):
-    """Parses a tensor that contains image attributes to its components.
-    See compose_image_meta() for more details.
-
-    meta: [batch, meta length] where meta length depends on NUM_CLASSES
-
-    Returns a dict of the parsed tensors.
+    """ 将 meta 解析成 图像的属性的 tensor 类型的值
+    参考 compose_image_meta() 函数的定义。
+    meta: [batch, meta length] 数据长度取决于： NUM_CLASSES
+    返回一个属性和值的字典。.
     """
     image_id = meta[:, 0]
     original_image_shape = meta[:, 1:4]
@@ -2796,15 +2781,13 @@ def parse_image_meta_graph(meta):
 
 
 def mold_image(images, config):
-    """Expects an RGB image (or array of images) and subtracts
-    the mean pixel and converts it to float. Expects image
-    colors in RGB order.
+    """需要一个RGB图像（或图像数组），减去平均像素并将其转换为浮点。
     """
     return images.astype(np.float32) - config.MEAN_PIXEL
 
 
 def unmold_image(normalized_images, config):
-    """Takes a image normalized with mold() and returns the original."""
+    """对一个 mold 图像， 进行还原。"""
     return (normalized_images + config.MEAN_PIXEL).astype(np.uint8)
 
 
